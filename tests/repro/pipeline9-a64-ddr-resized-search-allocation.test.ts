@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test"
+import { materializePipeline9HdRouteVias } from "lib/autorouter-pipelines/AutoroutingPipeline9_PreloadedTraceGraph/materializePipeline9HdRouteVias"
 import { GrowShrinkHighDensityIntraNodeSolver } from "lib/solvers/HyperHighDensitySolver/GrowShrinkHighDensityIntraNodeSolver"
 import { loadA64DdrResizedSearch } from "../fixtures/loadA64DdrResizedSearch"
 
@@ -35,6 +36,9 @@ test(
     expect(solver.solved).toBeTrue()
     expect(solver.growthAttempts).toBeGreaterThan(0)
     expect(solver.solvedRoutes).toHaveLength(19)
+    expect(() =>
+      materializePipeline9HdRouteVias(solver.solvedRoutes),
+    ).not.toThrow()
     expect(
       new Set(solver.solvedRoutes.map((route) => route.connectionName)),
     ).toEqual(
