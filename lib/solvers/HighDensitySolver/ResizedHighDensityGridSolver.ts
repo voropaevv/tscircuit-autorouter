@@ -1,6 +1,5 @@
 import { HighDensitySolverA03 } from "@tscircuit/high-density-a01"
 import type { ConnectivityMap } from "circuit-json-to-connectivity-map"
-import type { GraphicsObject } from "graphics-debug"
 import type { NodeWithPortPoints } from "lib/types/high-density-types"
 import { createRectFromCapacityNode } from "lib/utils/createRectFromCapacityNode"
 
@@ -65,10 +64,6 @@ export class ResizedHighDensityGridSolver extends HighDensitySolverA03 {
     return "ResizedHighDensityGridSolver"
   }
 
-  get gridStats(): { states: number } {
-    return { states: (this.planeSize ?? 0) * (this.layers ?? 0) }
-  }
-
   override get solvedConnectionsMap(): HighDensitySolverA03["solvedConnectionsMap"] {
     return this.gridInitialized ? super.solvedConnectionsMap : new Map()
   }
@@ -89,14 +84,17 @@ export class ResizedHighDensityGridSolver extends HighDensitySolverA03 {
     )
   }
 
-  override visualize(): GraphicsObject {
+  override visualize(): ReturnType<HighDensitySolverA03["visualize"]> {
     if (this.gridInitialized) return super.visualize()
     const node = this.nodeWithPortPoints
     const availableZ = node.availableZ ?? [
       ...new Set(node.portPoints.map((point) => point.z)),
     ]
     return {
+      title: "Resized grid search before allocation",
       coordinateSystem: "cartesian",
+      lines: [],
+      circles: [],
       rects: [
         createRectFromCapacityNode(
           { ...node, availableZ, layer: `z${availableZ.join(",")}` },
