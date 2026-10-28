@@ -86,7 +86,7 @@ test(
       obstacles: [
         {
           type: "rect",
-          center: edge!.center,
+          center: { x: edge!.center.x + 0.025, y: edge!.center.y },
           width: 0.05,
           height: 0.6,
           layers: ["bottom"],
