@@ -16,6 +16,7 @@ import { PriorityDagIntraNodeSolver } from "../HighDensitySolver/PriorityDagIntr
 import { IntraNodeRouteSolver } from "../HighDensitySolver/IntraNodeSolver"
 import { MultiHeadPolyLineIntraNodeSolver2 } from "../HighDensitySolver/MultiHeadPolyLineIntraNodeSolver/MultiHeadPolyLineIntraNodeSolver2_Optimized"
 import { MultiHeadPolyLineIntraNodeSolver3 } from "../HighDensitySolver/MultiHeadPolyLineIntraNodeSolver/MultiHeadPolyLineIntraNodeSolver3_ViaPossibilitiesSolverIntegration"
+import { ResizedHighDensityGridSolver } from "../HighDensitySolver/ResizedHighDensityGridSolver"
 import { SingleLayerNoDifferentRootIntersectionsIntraNodeSolver } from "../HighDensitySolver/SingleLayerNoDifferentRootIntersectionsIntraNodeSolver"
 import { SingleTransitionIntraNodeSolver } from "../HighDensitySolver/SingleTransitionIntraNodeSolver"
 import { SingleTransitionThroughObstacleIntraNodeSolver } from "../HighDensitySolver/SingleTransitionThroughObstacleIntraNodeSolver"
@@ -57,6 +58,7 @@ export class PortfolioSingleIntraNodeSolver extends HyperParameterSupervisorSolv
     typeof CachedIntraNodeRouteSolver
   >[0] & {
     boardGeometry?: HighDensityBoardGeometry
+    gridCoordinateScale?: number
   }
   solvedRoutes: HighDensityIntraNodeRoute[] = []
   nodeWithPortPoints: NodeWithPortPoints
@@ -129,6 +131,7 @@ export class PortfolioSingleIntraNodeSolver extends HyperParameterSupervisorSolv
       gridSearchWorkScale?: number
       rejectOverlappingTerminals?: boolean
       boardGeometry?: HighDensityBoardGeometry
+      gridCoordinateScale?: number
     },
   ) {
     super()
@@ -398,8 +401,13 @@ export class PortfolioSingleIntraNodeSolver extends HyperParameterSupervisorSolv
    * not advance the solver or give it preference in the portfolio.
    */
   private initializeCandidateBudget(solver: unknown) {
-    // A13 already declares its search limit; allocate its grid only if selected.
-    if (solver instanceof HighDensitySolverA13) return
+    // These candidates declare their search limits before allocating a grid.
+    if (
+      solver instanceof HighDensitySolverA13 ||
+      solver instanceof ResizedHighDensityGridSolver
+    ) {
+      return
+    }
     const setup = (solver as any).setup
     if (typeof setup === "function") setup.call(solver)
     if (
@@ -645,6 +653,24 @@ export class PortfolioSingleIntraNodeSolver extends HyperParameterSupervisorSolv
       solver.MAX_ITERATIONS = maxSearchIterations * 2
       return solver as any
     }
+    if (hyperParameters.HIGH_DENSITY_A01 || hyperParameters.HIGH_DENSITY_A03) {
+      const coordinateScale = this.constructorParams.gridCoordinateScale ?? 1
+      if (coordinateScale > 1) {
+        // Crowded DDR guides can grow the region 16x or 32x. Keep fine edge
+        // cells while using the existing coarser interior and typed search.
+        return new ResizedHighDensityGridSolver({
+          nodeWithPortPoints: this.nodeWithPortPoints,
+          coordinateScale,
+          maxSearchIterations: this.getGridSearchIterationBudget(),
+          traceWidth: this.constructorParams.traceWidth ?? 0.15,
+          viaDiameter: this.constructorParams.viaDiameter ?? 0.3,
+          traceMargin: 0.1,
+          effort: this.effort,
+          shuffleSeed: hyperParameters.SHUFFLE_SEED ?? 0,
+          connMap: this.connMap,
+        }) as any
+      }
+    }
     if (hyperParameters.HIGH_DENSITY_A01) {
       const solver = new HighDensitySolverA01({
         nodeWithPortPoints: this.nodeWithPortPoints,
@@ -669,11 +695,7 @@ export class PortfolioSingleIntraNodeSolver extends HyperParameterSupervisorSolv
         viaDiameter: this.constructorParams.viaDiameter ?? 0.3,
         viaMinDistFromBorder: (this.constructorParams.viaDiameter ?? 0.3) / 2,
         traceMargin: 0.1,
-        // This likely needs to be corrected to use the actual trace width-
-        // but using anything but 0.1 for traceThickness is causing issues
-        // needs more debugging- repro01 in the high-density-a01 repo
-        // has a good reproduction
-        traceThickness: 0.1, // this.constructorParams.traceWidth ?? 0.15,
+        traceThickness: this.constructorParams.traceWidth ?? 0.15,
         effort: this.effort,
         hyperParameters,
       })

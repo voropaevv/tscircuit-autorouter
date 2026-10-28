@@ -2,7 +2,7 @@ import { expect, test } from "bun:test"
 import { GrowShrinkHighDensityIntraNodeSolver } from "lib/solvers/HyperHighDensitySolver/GrowShrinkHighDensityIntraNodeSolver"
 import { loadA64DdrResizedSearch } from "../fixtures/loadA64DdrResizedSearch"
 
-test.failing(
+test(
   "the real A64 DDR retry solves without allocating uniform enlarged grids",
   (): void => {
     const params = loadA64DdrResizedSearch()
